@@ -1,6 +1,5 @@
 "use client"
 //app/page.tsx
-import TerminalOverlay from "@/components/TerminalOverlay";
 import { Button } from "@/components/ui/button";
 import UserPrograms from "@/components/UserPrograms";
 import { ArrowRightIcon, SparklesIcon, ZapIcon, TrendingUpIcon } from "lucide-react";
@@ -18,8 +17,8 @@ const HomePage = () => {
 
             {/* LEFT SIDE CONTENT */}
             <div className="lg:col-span-7 space-y-6 sm:space-y-8 relative flex flex-col justify-center order-2 lg:order-1">
-              <div className="space-y-3 sm:space-y-4">
-                <div className="flex items-center gap-2 mb-4">
+              <div className="space-y-3 sm:space-y-4 text-center sm:text-left">
+                <div className="flex items-center gap-2 mb-4 justify-center sm:justify-start">
                   <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
                   <span className="text-xs sm:text-sm font-mono text-cyan-400 uppercase tracking-wider">AI-Powered Fitness</span>
                 </div>
@@ -87,7 +86,7 @@ const HomePage = () => {
 
               {/* IMAGE CONTAINER */}
               <div className="relative w-full max-w-[240px] sm:max-w-[280px] md:max-w-[350px] lg:max-w-md aspect-square mx-auto">
-                <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-cyan-400/5 to-cyan-400/10 border border-cyan-400/20 backdrop-blur-sm">
+                <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-cyan-400/5 to-cyan-400/10 border border-cyan-400/20 sm:backdrop-blur-sm">
                   <div className="relative w-full h-full">
                     <Image
                       src="/AI avatar 2.png"
@@ -121,9 +120,6 @@ const HomePage = () => {
                   {/* GRADIENT OVERLAY */}
                   <div className="absolute inset-0 bg-gradient-to-t from-cyan-400/10 via-transparent to-transparent rounded-xl sm:rounded-2xl" />
                 </div>
-
-                {/* TERMINAL OVERLAY */}
-                <TerminalOverlay />
               </div>
             </div>
           </div>
