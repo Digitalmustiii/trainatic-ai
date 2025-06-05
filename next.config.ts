@@ -1,172 +1,106 @@
+// next.config.ts
+
 import type { NextConfig } from "next";
 import type { Configuration as WebpackConfig } from "webpack";
 import bundleAnalyzer from "@next/bundle-analyzer";
-import webpack from "webpack";
 
+/**
+ * Wrap NextConfig with @next/bundle-analyzer, enabled via ANALYZE=true
+ */
 const withBundleAnalyzer = bundleAnalyzer({
-  enabled: process.env.ANALYZE === "true" && process.env.NODE_ENV !== "production",
+  enabled: process.env.ANALYZE === "true",
 });
 
 const nextConfig: NextConfig = withBundleAnalyzer({
+  // 1️⃣ React Strict Mode
   reactStrictMode: true,
 
+  // 2️⃣ SWC Minify (faster builds, smaller bundles)
+  swcMinify: true,
+
+  // 3️⃣ Remove all console.* calls in production
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
-    reactRemoveProperties: process.env.NODE_ENV === "production",
-    styledComponents: process.env.NODE_ENV === "production",
   },
 
+  // 4️⃣ Image Optimization domains
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "img.clerk.com",
-      },
-      {
-        protocol: "https",
-        hostname: "randomuser.me",
-      },
+    domains: [
+      "img.clerk.com",
+      "randomuser.me",
+      // …add any other remote image CDNs here
     ],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256],
-    formats: ["image/webp", "image/avif"],
-    minimumCacheTTL: 31536000,
+    deviceSizes: [320, 420, 768, 1024, 1280, 1600],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 
-  webpack(config: WebpackConfig, { dev, isServer }) {
-    config.resolve = config.resolve || {};
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      net: false,
-      tls: false,
-    };
-
-    // ✅ Fix for SSR build issues like "window is not defined"
-    config.plugins = config.plugins || [];
-    config.plugins.push(
-      new webpack.DefinePlugin({
-        "typeof window": JSON.stringify(isServer ? "undefined" : "object"),
-        "typeof self": JSON.stringify(isServer ? "undefined" : "object"),
-        "typeof global": JSON.stringify("object"),
-      })
-    );
-
+  // 5️⃣ Custom Webpack adjustments (fully typed)
+  webpack(
+    config: WebpackConfig,
+    { dev, isServer }: { dev: boolean; isServer: boolean }
+  ): WebpackConfig {
     if (!dev && !isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: "all",
-          cacheGroups: {
-            default: false,
-            vendors: false,
-            vendor: {
-              name: "vendor",
-              chunks: "all",
-              test: /node_modules/,
-              priority: 20,
-            },
-            common: {
-              name: "common",
-              minChunks: 2,
-              chunks: "all",
-              priority: 10,
-              reuseExistingChunk: true,
-              enforce: true,
-            },
-          },
-        },
-      };
-
+      // Example: exclude a folder/module (e.g. @locales) from the client bundle
+      config.resolve = config.resolve || {};
       config.resolve.alias = {
         ...(config.resolve.alias || {}),
         "@locales": false,
       };
     }
-
     return config;
   },
 
+  // 6️⃣ Experimental flags (empty for now—add only valid ones)
   experimental: {
-    optimizePackageImports: ["lodash", "date-fns", "lucide-react"],
-    serverActions: {
-      bodySizeLimit: "1mb",
-    },
+    // Example placeholders (uncomment if you actually use them):
+    // serverActions: true,
+    // appDir: true, // Next 13’s App Router is already enabled if you’re under /src/app
   },
 
+  // 7️⃣ Custom HTTP headers (for caching static assets & API routes)
   async headers() {
     return [
       {
+        // Cache Next.js built-in JS/CSS under /_next/static for 1 year
         source: "/_next/static/(.*)",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
       {
+        // Cache font files under /public/fonts for 1 year
         source: "/fonts/(.*)",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-          {
-            key: "Cross-Origin-Resource-Policy",
-            value: "cross-origin",
-          },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
       {
+        // Cache images under /public/images for 1 year
         source: "/images/(.*)",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=86400, s-maxage=31536000, stale-while-revalidate=86400",
-          },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
       {
-        source: "/(.*)\\.(svg|jpg|jpeg|png|gif|webp|ico|avif)",
+        // Cache any other static image (svg/jpg/png/webp) at root for 1 year
+        source: "/(.*)\\.(svg|jpg|jpeg|png|gif|webp)",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=86400, s-maxage=31536000, stale-while-revalidate=86400",
-          },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
       {
+        // API routes: cache at Vercel’s edge for 60s, stale-while-revalidate
         source: "/api/(.*)",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "s-maxage=60, stale-while-revalidate=300",
-          },
-          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Cache-Control", value: "s-maxage=60, stale-while-revalidate=59" },
         ],
       },
     ];
   },
 
-  logging: {
-    fetches: {
-      fullUrl: process.env.NODE_ENV === "development",
-    },
-  },
-
-  poweredByHeader: false,
-  compress: true,
-  productionBrowserSourceMaps: false,
-
-  generateBuildId: async () => {
-    return (
-      process.env.VERCEL_GIT_COMMIT_SHA ||
-      process.env.VERCEL_DEPLOYMENT_ID ||
-      `prod-${Date.now()}`
-    );
+  // 8️⃣ Future flags (depending on your Next.js version)
+  future: {
+    webpack5: true, // Next 13+ already uses Webpack 5 by default
   },
 });
 
