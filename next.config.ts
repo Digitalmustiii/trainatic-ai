@@ -2,6 +2,7 @@
 import type { NextConfig } from "next";
 import type { Configuration as WebpackConfig } from "webpack";
 import bundleAnalyzer from "@next/bundle-analyzer";
+import webpack from 'webpack';
 
 /**
  * Bundle analyzer - only for local analysis, disabled in production
@@ -45,46 +46,62 @@ const nextConfig: NextConfig = withBundleAnalyzer({
     minimumCacheTTL: 31536000, // 1 year
   },
 
-  // 4️⃣ Custom Webpack optimizations for production
+  // 4️⃣ Fixed Webpack configuration to prevent SSR issues
   webpack(
     config: WebpackConfig,
     { dev, isServer }: { dev: boolean; isServer: boolean }
   ): WebpackConfig {
+    // Fix for "self is not defined" error
+    config.resolve = config.resolve || {};
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+    };
+
+    // Define global variables for SSR compatibility
+config.plugins = config.plugins || [];
+config.plugins.push(
+  new webpack.DefinePlugin({
+    'typeof window': JSON.stringify('object'),
+    'typeof self': JSON.stringify(isServer ? 'undefined' : 'object'),
+    'typeof global': JSON.stringify('object'),
+  })
+);
+
     // Production optimizations
     if (!dev) {
-      // Enable module concatenation for smaller bundles
-      config.optimization = {
-        ...config.optimization,
-        concatenateModules: true,
-        // Split chunks more efficiently
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            default: false,
-            vendors: false,
-            // Vendor chunk for node_modules
-            vendor: {
-              name: 'vendor',
-              chunks: 'all',
-              test: /node_modules/,
-              priority: 20,
-            },
-            // Common chunk for shared code
-            common: {
-              name: 'common',
-              minChunks: 2,
-              chunks: 'all',
-              priority: 10,
-              reuseExistingChunk: true,
-              enforce: true,
+      // Client-side only optimizations
+      if (!isServer) {
+        // Split chunks more efficiently for client
+        config.optimization = {
+          ...config.optimization,
+          splitChunks: {
+            chunks: 'all',
+            cacheGroups: {
+              default: false,
+              vendors: false,
+              // Vendor chunk for node_modules (client only)
+              vendor: {
+                name: 'vendor',
+                chunks: 'all',
+                test: /node_modules/,
+                priority: 20,
+              },
+              // Common chunk for shared code
+              common: {
+                name: 'common',
+                minChunks: 2,
+                chunks: 'all',
+                priority: 10,
+                reuseExistingChunk: true,
+                enforce: true,
+              },
             },
           },
-        },
-      };
+        };
 
-      // Client-side optimizations
-      if (!isServer) {
-        config.resolve = config.resolve || {};
         config.resolve.alias = {
           ...(config.resolve.alias || {}),
           "@locales": false,
@@ -95,31 +112,21 @@ const nextConfig: NextConfig = withBundleAnalyzer({
     return config;
   },
 
-  // 5️⃣ Experimental flags for performance
+  // 5️⃣ Experimental flags - conservative for production stability
   experimental: {
-    // Enable optimized package imports for common libraries
+    // Only enable stable features for production
     optimizePackageImports: [
       'lodash',
       'date-fns', 
       'lucide-react',
-      '@heroicons/react',
-      'framer-motion'
     ],
-    // Enable partial prerendering if using App Router
-    // ppr: true,
-    // Optimize server actions
+    // Server actions with conservative limits
     serverActions: {
-      bodySizeLimit: '2mb',
+      bodySizeLimit: '1mb',
     },
-    // Enable turbo for faster builds
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
+    // Disable potentially unstable features for production
+    // ppr: false,
+    // turbo: false, // Can cause build issues
   },
 
   // 6️⃣ PRODUCTION-OPTIMIZED HTTP headers for Vercel Edge Network
