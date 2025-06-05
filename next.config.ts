@@ -64,7 +64,7 @@ const nextConfig: NextConfig = withBundleAnalyzer({
 config.plugins = config.plugins || [];
 config.plugins.push(
   new webpack.DefinePlugin({
-    'typeof window': JSON.stringify('object'),
+   'typeof window': JSON.stringify(isServer ? 'undefined' : 'object'),
     'typeof self': JSON.stringify(isServer ? 'undefined' : 'object'),
     'typeof global': JSON.stringify('object'),
   })
